@@ -17,7 +17,7 @@ FineWeb は Common Crawl ベースの高品質テキストコーパスで、約6
 ### 実行例
 ```bash
 python litgpt/data/download_fineweb_parquet.py \
-  --output_dir data/fineweb_parquet
+  --output_dir dataset/fineweb_parquet
 ```
 ## 2. トークナイズ＆シャード生成
 
@@ -38,11 +38,13 @@ python litgpt/data/download_fineweb_parquet.py \
 
 ### 実行例
 ```bash
-python litgpt/data/prepare_fineweb_sample10b.py \
---input_dir      data/fineweb_parquet \
---output_dir     data/fineweb_sample10b \
---tokenizer_path tokenizers/gpt2       \
---chunk_size     67108864               # ≈1 GiB／uint16
+python litgpt/data/prepare_fineweb_sample.py \
+    --input_dir  dataset/fineweb_parquet/sample/10BT \
+    --output_dir  dataset/fineweb_sample10b \
+    --tokenizer_path  checkpoints/meta-llama/Meta-Llama-3.1-8B \
+    --val_split_fraction  0.0001 \
+    --chunk_size  67108864   # ≈1 GiB／uint16 \ 
+    --fast_dev_run  true         
 ```
 
 ## 3. DataLoader 提供用 DataModule
@@ -52,7 +54,7 @@ python litgpt/data/prepare_fineweb_sample10b.py \
 
 ### 概要  
 - **DataModule** を継承し、`prepare_data()` で事前処理済みのシャード（`.bin`）がなければ自動で生成スクリプトを呼び出します。  
-- `train_dataloader()`／`val_dataloader()` では **StreamingDataset** と **StreamingDataLoader**、および **TokensLoader** を組み合わせて、シャードをオン-ザ-フライでストリーミング読み込みします :contentReference[oaicite:0]{index=0}。  
+- `train_dataloader()`／`val_dataloader()` では **StreamingDataset** と **StreamingDataLoader**、および **TokensLoader** を組み合わせて、シャードをオン-ザ-フライでストリーミング読み込みします。  
 - `connect(tokenizer, batch_size, max_seq_length)` を呼ぶことで、バッチサイズやシーケンス長を動的に設定可能です。
 
 ### 利用例  
@@ -61,7 +63,8 @@ from litgpt.data.fineweb_sample10b import FineWebSample10B
 from litgpt.tokenizer           import Tokenizer
 
 # 任意のトークナイザをロード
-tokenizer = Tokenizer("tokenizers/gpt2")
+tokenizer_path = 'checkpoints/meta-llama/Meta-Llama-3.1-8B'
+tokenizer = Tokenizer(tokenizer_path)
 
 # DataModule を初期化＆接続
 dm = FineWebSample10B(val_split_fraction=0.0005)
@@ -73,11 +76,7 @@ trainer.fit(
     train_dataloaders=dm.train_dataloader(),
     val_dataloaders=dm.val_dataloader(),
 )
-
-
-
-
-
+```
 
 
 <div align="center">
