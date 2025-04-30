@@ -70,11 +70,11 @@ python litgpt/data/prepare_fineweb_sample.py \
 ### 概要  
 - **DataModule** を継承し、`prepare_data()` で事前処理済みのシャード（`.bin`）がなければ自動で生成スクリプトを呼び出します。  
 - `train_dataloader()`／`val_dataloader()` では **StreamingDataset** と **StreamingDataLoader**、および **TokensLoader** を組み合わせて、シャードをオン-ザ-フライでストリーミング読み込みします。  
-- `connect(tokenizer, batch_size, max_seq_length)` を呼ぶことで、バッチサイズやシーケンス長を動的に設定可能です。
+- `connect(tokenizer, batch_size, max_seq_length)` を呼ぶことで、バッチサイズやシーケンス長を動的に設定可能です（未実装）。
 
 ### 利用例  
 ```python
-from litgpt.data.fineweb_sample10b import FineWebSample10B
+from litgpt.data.fineweb_sample import FineWebSample
 from litgpt.tokenizer           import Tokenizer
 
 # 任意のトークナイザをロード
@@ -82,7 +82,7 @@ tokenizer_path = 'checkpoints/meta-llama/Meta-Llama-3.1-8B'
 tokenizer = Tokenizer("checkpoints/meta-llama/Meta-Llama-3.1-8B")
 
 # DataModule を初期化＆接続
-dm = FineWebSample10B(val_split_fraction=0.0005)
+dm = FineWebSample()
 dm.connect(tokenizer=tokenizer, batch_size=8, max_seq_length=2048)
 
 # PyTorch Lightning などの Trainer へ渡す
