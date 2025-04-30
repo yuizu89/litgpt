@@ -59,17 +59,7 @@ python litgpt/data/prepare_fineweb_sample.py \
 --tokenizer_path      checkpoints/meta-llama/Meta-Llama-3.1-8B \
 --val_split_fraction  0.0001 \
 --chunk_size          67108864   # ≈1 GiB／uint16 \ 
---fast_dev_run        true
-
-### 実行例
-
-```bash
-python litgpt/data/prepare_fineweb_sample10b.py \
---input_dir      data/fineweb_parquet \
---output_dir     data/fineweb_sample10b \
---tokenizer_path tokenizers/gpt2       \
---chunk_size     67108864               # ≈1 GiB／uint16
-      
+--fast_dev_run        true      
 ```
 
 ## 3. DataLoader 提供用 DataModule
