@@ -1,3 +1,85 @@
+## Dataset の準備
+
+FineWeb は Common Crawl ベースの高品質テキストコーパスで、約650Bトークンを超える大量データを Parquet 形式で公開しています。本プロジェクトではその中から **sample-10BT**（約10Bトークン、約27GB）を使い、以下の 3 段階で前処理 → 学習用 DataLoader を実現します。
+
+---
+
+## 1. Parquet ファイルのダウンロード
+
+### スクリプト
+`litgpt/data/download_fineweb_parquet.py`
+
+### 概要
+- `snapshot_download()` を使い、HuggingFace の FineWeb データセットから  
+  `sample/10BT/*.parquet` ファイル（約13ファイル、約27GB）をローカルに取得します。  
+- 取得先フォルダは `--output_dir` で指定。既に Parquet がある場合はスキップします。
+
+### 実行例
+```bash
+python litgpt/data/download_fineweb_parquet.py \
+  --output_dir data/fineweb_parquet
+```
+## 2. トークナイズ＆シャード生成
+
+### スクリプト
+`litgpt/data/prepare_fineweb_sample10b.py`
+
+### 概要
+1. **Parquet 検出**  
+   - `--input_dir` 以下の `*.parquet` ファイルを自動検出します。  
+2. **トークナイズ**  
+   - 各ドキュメントを `Tokenizer.encode(bos=False, eos=True)` で GPT-2 形式に変換します。  
+3. **シャード生成**  
+   - 指定の `chunk_size`（デフォルト：約1 GiB＝67 M トークン／`uint16`）ごとに `.bin` ファイルを出力します。  
+   - `val_split_fraction`（既定 0.0005）に従い train/validation に分割します。  
+4. **出力構成**
+   - data/fineweb_sample10b/ 
+      　　　　├─ train/*.bin ├─ val *.bin └─ meta.pkl
+
+### 実行例
+```bash
+python litgpt/data/prepare_fineweb_sample10b.py \
+--input_dir      data/fineweb_parquet \
+--output_dir     data/fineweb_sample10b \
+--tokenizer_path tokenizers/gpt2       \
+--chunk_size     67108864               # ≈1 GiB／uint16
+```
+
+## 3. DataLoader 提供用 DataModule
+
+### スクリプト  
+`litgpt/data/fineweb_sample10b.py`
+
+### 概要  
+- **DataModule** を継承し、`prepare_data()` で事前処理済みのシャード（`.bin`）がなければ自動で生成スクリプトを呼び出します。  
+- `train_dataloader()`／`val_dataloader()` では **StreamingDataset** と **StreamingDataLoader**、および **TokensLoader** を組み合わせて、シャードをオン-ザ-フライでストリーミング読み込みします :contentReference[oaicite:0]{index=0}。  
+- `connect(tokenizer, batch_size, max_seq_length)` を呼ぶことで、バッチサイズやシーケンス長を動的に設定可能です。
+
+### 利用例  
+```python
+from litgpt.data.fineweb_sample10b import FineWebSample10B
+from litgpt.tokenizer           import Tokenizer
+
+# 任意のトークナイザをロード
+tokenizer = Tokenizer("tokenizers/gpt2")
+
+# DataModule を初期化＆接続
+dm = FineWebSample10B(val_split_fraction=0.0005)
+dm.connect(tokenizer=tokenizer, batch_size=8, max_seq_length=2048)
+
+# PyTorch Lightning などの Trainer へ渡す
+trainer.fit(
+    model,
+    train_dataloaders=dm.train_dataloader(),
+    val_dataloaders=dm.val_dataloader(),
+)
+
+
+
+
+
+
+
 <div align="center">
 
 
