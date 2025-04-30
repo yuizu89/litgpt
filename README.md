@@ -11,7 +11,7 @@ FineWeb は Common Crawl ベースの高品質テキストコーパスで、約6
 
 ### 概要
 - `snapshot_download()` を使い、HuggingFace の FineWeb データセットから  
-  `sample/10BT/*.parquet` ファイル（約13ファイル、約27GB）をローカルに取得します。  
+  `sample/10BT/*.parquet` ファイル（約13ファイル、約27GB）をローカルに取得します。
 - 取得先フォルダは `--output_dir` で指定。既に Parquet がある場合はスキップします。
 
 ### 実行例
@@ -22,29 +22,54 @@ python litgpt/data/download_fineweb_parquet.py \
 ## 2. トークナイズ＆シャード生成
 
 ### スクリプト
+
 `litgpt/data/prepare_fineweb_sample10b.py`
 
 ### 概要
+
 1. **Parquet 検出**  
-   - `--input_dir` 以下の `*.parquet` ファイルを自動検出します。  
+   `--input_dir` 以下の `*.parquet` ファイルを自動検出します。
+
 2. **トークナイズ**  
-   - 各ドキュメントを `Tokenizer.encode(bos=False, eos=True)` で GPT-2 形式に変換します。  
+   `Tokenizer.encode(bos=False, eos=True)` でドキュメントを GPT-2 形式に変換します。
+
 3. **シャード生成**  
-   - 指定の `chunk_size`（デフォルト：約1 GiB＝67 M トークン／`uint16`）ごとに `.bin` ファイルを出力します。  
-   - `val_split_fraction`（既定 0.0005）に従い train/validation に分割します。  
+   - `chunk_size`（既定：1 GiB ≒ 67 M トークン／`uint16`）ごとに `.bin` を出力  
+   - `val_split_fraction`（既定：0.0005）で train/val に分割
+
 4. **出力構成**
-   - data/fineweb_sample10b/ 
-      　　　　├─ train/*.bin ├─ val *.bin └─ meta.pkl
+
+   ```text
+   data/fineweb_sample10b/
+   ├─ train/
+   │   ├─ part-00000.bin
+   │   ├─ part-00001.bin
+   │   └─ … 
+   ├─ val/
+   │   ├─ part-00000.bin
+   │   └─ …
+   └─ meta.pkl
+
 
 ### 実行例
 ```bash
 python litgpt/data/prepare_fineweb_sample.py \
-    --input_dir  dataset/fineweb_parquet/sample/10BT \
-    --output_dir  dataset/fineweb_sample10b \
-    --tokenizer_path  checkpoints/meta-llama/Meta-Llama-3.1-8B \
-    --val_split_fraction  0.0001 \
-    --chunk_size  67108864   # ≈1 GiB／uint16 \ 
-    --fast_dev_run  true         
+--input_dir           dataset/fineweb_parquet/sample/10BT \
+--output_dir          dataset/fineweb_sample10b \
+--tokenizer_path      checkpoints/meta-llama/Meta-Llama-3.1-8B \
+--val_split_fraction  0.0001 \
+--chunk_size          67108864   # ≈1 GiB／uint16 \ 
+--fast_dev_run        true
+
+### 実行例
+
+```bash
+python litgpt/data/prepare_fineweb_sample10b.py \
+--input_dir      data/fineweb_parquet \
+--output_dir     data/fineweb_sample10b \
+--tokenizer_path tokenizers/gpt2       \
+--chunk_size     67108864               # ≈1 GiB／uint16
+      
 ```
 
 ## 3. DataLoader 提供用 DataModule
@@ -64,7 +89,7 @@ from litgpt.tokenizer           import Tokenizer
 
 # 任意のトークナイザをロード
 tokenizer_path = 'checkpoints/meta-llama/Meta-Llama-3.1-8B'
-tokenizer = Tokenizer(tokenizer_path)
+tokenizer = Tokenizer("checkpoints/meta-llama/Meta-Llama-3.1-8B")
 
 # DataModule を初期化＆接続
 dm = FineWebSample10B(val_split_fraction=0.0005)
